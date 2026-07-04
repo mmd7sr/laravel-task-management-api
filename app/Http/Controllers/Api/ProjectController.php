@@ -20,11 +20,12 @@ public function index(Request $request)
             $query->where('status', $status);
         })
         ->when($request->search, function ($query, $search) {
-            $query->where('name', 'like', "%$search%");
+            $query->where('name', 'like', "%{$search}%");
         })
-        ->get();
+        ->latest()
+        ->paginate(15);
 
-    return response()->json($projects);
+    return ProjectResource::collection($projects);
 }
 
 
@@ -39,14 +40,14 @@ public function index(Request $request)
 
     public function show(Project $project)
     {
-        $this->authorizeProject($project);
+        $this->authorize('view', $project);
 
         return new ProjectResource($project);
     }
 
     public function update(UpdateProjectRequest $request, Project $project)
     {
-        $this->authorizeProject($project);
+        $this->authorize('update', $project);
 
         $project->update($request->validated());
 
@@ -55,19 +56,12 @@ public function index(Request $request)
 
     public function destroy(Project $project): JsonResponse
     {
-        $this->authorizeProject($project);
+        $this->authorize('delete', $project);
 
         $project->delete();
 
         return response()->json([
             'message' => 'Project deleted successfully.',
         ]);
-    }
-
-    private function authorizeProject(Project $project): void
-    {
-        if ($project->user_id !== auth()->id()) {
-            abort(403, 'This action is unauthorized.');
-        }
     }
 }

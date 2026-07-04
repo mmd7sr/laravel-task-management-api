@@ -6,13 +6,24 @@ use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
-   public function project()
-{
-    return $this->belongsTo(Project::class);
-}
+    protected $fillable = [
+        'title',
+        'description',
+        'status',
+        'due_date',
+    ];
 
-public function user()
-{
-    return $this->belongsTo(User::class);
-}
+    protected $casts = [
+        'due_date' => 'date',
+    ];
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
