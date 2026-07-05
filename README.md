@@ -1,292 +1,248 @@
-# Laravel Task Management API
+# Task Management API
 
-A RESTful Task Management API built with **Laravel 11** and **Laravel Sanctum**.  
-This project provides token-based authentication and user-owned project management using a clean API structure, Form Requests, Eloquent relationships, and API Resources.
+A task-management application built with **Laravel 13**, offering two interfaces over the same domain:
+
+- A **token-based REST API** (Laravel Sanctum) for programmatic access.
+- A **session-based web UI** (Blade + Tailwind CSS) for interactive use.
+
+Users can register, create projects, and manage tasks within those projects. All data is user-owned and protected by authorization policies.
 
 ---
 
 ## Features
 
-- User registration
-- User login
-- Token-based authentication with Laravel Sanctum
-- Protected API routes
-- Project CRUD operations
-- User-owned projects
-- Request validation using Form Requests
-- Standardized JSON responses using API Resources
-- Authorization checks to prevent users from accessing other users' projects
+- User registration, login, and logout
+- **Dual authentication:** Sanctum bearer tokens for the API, session auth for the web UI
+- **Projects** — full CRUD, owned per user
+- **Tasks** — full CRUD, nested under projects
+- Authorization via **Policies** (users can only access their own projects and tasks)
+- Request validation (Form Requests on the API, validated controllers on the web)
+- Standardized JSON output via **API Resources**
+- **Pagination**, plus search and status filtering on listings
+- Blade web UI with reusable components and flash/validation messaging
 
 ---
 
 ## Tech Stack
 
-- PHP 8+
-- Laravel 11
-- Laravel Sanctum
-- MySQL
-- Eloquent ORM
-- RESTful API Architecture
-- Postman for API testing
+| Layer | Technology |
+|-------|------------|
+| Language | PHP 8.3+ |
+| Framework | Laravel 13 |
+| API auth | Laravel Sanctum 4 |
+| Database | MySQL (SQLite supported) |
+| ORM | Eloquent |
+| Frontend | Blade, Tailwind CSS 4, Vite |
+| Testing | Pest 4 |
 
 ---
 
-## Project Structure
+## Requirements
 
-The project follows a clean Laravel API structure:
-```text
-app/
-├── Http/
-│   ├── Controllers/
-│   │   ├── AuthController.php
-│   │   └── ProjectController.php
-│   ├── Requests/
-│   │   ├── StoreProjectRequest.php
-│   │   └── UpdateProjectRequest.php
-│   └── Resources/
-│       └── ProjectResource.php
-├── Models/
-│   ├── User.php
-│   └── Project.php
-routes/
-└── api.php
-Installation
-Clone the repository:
+- PHP **8.3+**
+- Composer
+- MySQL (or SQLite)
+- Node.js & npm (for building frontend assets)
 
-bash
-git clone https://gitlab.com/your-username/laravel-task-management-api.git
-Go to the project directory:
+---
 
-bash
-cd laravel-task-management-api
-Install PHP dependencies:
+## Installation
 
-bash
+```bash
+# 1. Clone
+git clone <repository-url>
+cd task-management-api
+
+# 2. Install PHP dependencies
 composer install
-Create the environment file:
 
-bash
+# 3. Install & build frontend assets
+npm install
+npm run build
+
+# 4. Create the environment file
 cp .env.example .env
-Generate the application key:
 
-bash
+# 5. Generate the application key
 php artisan key:generate
-Configure your database in the .env file:
+```
 
-env
+> A convenience script is also available: `composer setup` runs install, env creation, key generation, migration, and the asset build in one step.
+
+---
+
+## Environment Setup
+
+Configure the database in `.env`:
+
+```env
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_DATABASE=task_management_api
 DB_USERNAME=root
 DB_PASSWORD=
-Run database migrations:
+```
 
-bash
+Sessions, cache, and queues default to the `database` driver, so their tables are created by the migrations below.
+
+---
+
+## Database Migration & Seeding
+
+```bash
+# Run all migrations
 php artisan migrate
-Start the development server:
 
-bash
+# (Optional) Seed a demo user
+php artisan db:seed
+```
+
+The seeder creates one demo account:
+
+- **Email:** `test@example.com`
+- **Password:** `password`
+
+---
+
+## Running the Application
+
+**All-in-one (server + queue + Vite dev):**
+
+```bash
+composer dev
+```
+
+**Or run pieces individually:**
+
+```bash
+# Backend
 php artisan serve
-The API will be available at:
 
-text
-http://127.0.0.1:8000
-Authentication
-This project uses Laravel Sanctum for API token authentication.
+# Frontend (dev server with hot reload)
+npm run dev
+```
 
-After registration or login, the API returns a Bearer token.
+The app is served at `http://127.0.0.1:8000`. Open it in a browser for the web UI, or point an API client at `/api/*`.
 
-Use this token to access protected endpoints.
+---
 
-Example header:
+## Authentication Flow
 
-http
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Accept: application/json
-Content-Type: application/json
-API Endpoints
-Auth Endpoints
-Method	Endpoint	Description	Auth Required
-POST	/api/register	Register a new user	No
-POST	/api/login	Login user and generate token	No
-POST	/api/logout	Logout user and revoke token	Yes
-Project Endpoints
-Method	Endpoint	Description	Auth Required
-GET	/api/projects	Get authenticated user’s projects	Yes
-POST	/api/projects	Create a new project	Yes
-GET	/api/projects/{project}	Get a single project	Yes
-PUT/PATCH	/api/projects/{project}	Update a project	Yes
-DELETE	/api/projects/{project}	Delete a project	Yes
-Request Examples
-Register
-http
-POST /api/register
-Request body:
+**API (token-based, Sanctum)**
+1. `POST /api/register` or `POST /api/login` returns a plain-text bearer token.
+2. Send the token on protected requests:
+   ```http
+   Authorization: Bearer YOUR_ACCESS_TOKEN
+   Accept: application/json
+   ```
+3. `POST /api/logout` revokes the current token.
 
-json
-{
-  "name": "Test User",
-  "email": "test@example.com",
-  "password": "12345678",
-  "password_confirmation": "12345678"
-}
-Example response:
+**Web (session-based)**
+- Register or log in through the Blade pages; the session cookie authenticates subsequent requests. Logging out invalidates the session.
 
-json
-{
-  "user": {
-"id": 1,
-"name": "Test User",
-"email": "test@example.com"
-  },
-  "token": "1|example-token"
-}
-Login
-http
-POST /api/login
-Request body:
+The two guards are independent: the API uses the `sanctum` guard, the web UI uses the `web` (session) guard.
 
-json
-{
-  "email": "test@example.com",
-  "password": "12345678"
-}
-Example response:
+---
 
-json
-{
-  "user": {
-"id": 1,
-"name": "Test User",
-"email": "test@example.com"
-  },
-  "token": "1|example-token"
-}
-Create Project
-http
-POST /api/projects
-Headers:
+## API Endpoints
 
-http
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Accept: application/json
-Content-Type: application/json
-Request body:
+### Authentication
 
-json
-{
-  "name": "Task Management API",
-  "description": "A Laravel 11 RESTful API with Sanctum authentication.",
-  "status": "active"
-}
-Example response:
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/register` | Register and receive a token | No |
+| POST | `/api/login` | Log in and receive a token | No |
+| POST | `/api/logout` | Revoke the current token | Yes |
 
-json
-{
-  "data": {
-"id": 1,
-"name": "Task Management API",
-"description": "A Laravel 11 RESTful API with Sanctum authentication.",
-"status": "active",
-"created_at": "2026-06-18T10:00:43.000000Z",
-"updated_at": "2026-06-18T10:00:43.000000Z"
-  }
-}
-Get Projects
-http
-GET /api/projects
-Headers:
+### Projects
 
-http
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Accept: application/json
-Example response:
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/projects` | List the user's projects (paginated, `?search=`, `?status=`) | Yes |
+| POST | `/api/projects` | Create a project | Yes |
+| GET | `/api/projects/{project}` | Show a project | Yes |
+| PUT/PATCH | `/api/projects/{project}` | Update a project | Yes |
+| DELETE | `/api/projects/{project}` | Delete a project | Yes |
 
-json
-{
-  "data": [
-{
-"id": 1,
-"name": "Task Management API",
-"description": "A Laravel 11 RESTful API with Sanctum authentication.",
-"status": "active",
-"created_at": "2026-06-18T10:00:43.000000Z",
-"updated_at": "2026-06-18T10:00:43.000000Z"
-}
-  ]
-}
-Validation
-Project creation and update requests are validated using Laravel Form Requests.
+### Tasks
 
-Example project validation rules:
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/api/projects/{project}/tasks` | List a project's tasks (paginated, `?search=`, `?status=`) | Yes |
+| POST | `/api/projects/{project}/tasks` | Create a task under a project | Yes |
+| GET | `/api/tasks/{task}` | Show a task | Yes |
+| PUT | `/api/tasks/{task}` | Update a task | Yes |
+| DELETE | `/api/tasks/{task}` | Delete a task | Yes |
 
-php
-'name' => ['required', 'string', 'max:255'],
-'description' => ['nullable', 'string'],
-'status' => ['required', 'in:active,completed,on_hold'],
-Authorization
-Each project belongs to a specific user.
+**Status values** — Projects: `active`, `completed`, `archived`. Tasks: `todo`, `in_progress`, `done`.
 
-Authenticated users can only access, update, or delete their own projects.
+---
 
-If a user tries to access another user’s project, the API returns:
+## Web Pages
 
-json
-{
-  "message": "This action is unauthorized."
-}
-Database Relationships
-User
-A user can have many projects.
+| Route | Description |
+|-------|-------------|
+| `/login`, `/register` | Session authentication |
+| `/dashboard` | Overview: project/task counts and recent items |
+| `/projects` | Project list with search & status filter |
+| `/projects/create`, `/projects/{project}/edit` | Create / edit a project |
+| `/projects/{project}` | Project detail with its tasks |
+| `/projects/{project}/tasks/create`, `/tasks/{task}/edit` | Create / edit a task |
 
-php
-public function projects()
-{
-return $this->hasMany(Project::class);
-}
-Project
-A project belongs to one user.
+---
 
-php
-public function user()
-{
-return $this->belongsTo(User::class);
-}
-Testing with Postman
-Recommended headers for protected routes:
+## Project Structure
 
-http
-Authorization: Bearer YOUR_ACCESS_TOKEN
-Accept: application/json
-Content-Type: application/json
-Make sure to use the token returned from the login or register endpoint.
+```text
+app/
+├── Http/
+│   ├── Controllers/
+│   │   ├── Api/            # Token-authenticated JSON controllers
+│   │   │   ├── AuthController.php
+│   │   │   ├── ProjectController.php
+│   │   │   └── TaskController.php
+│   │   └── Web/            # Session-authenticated Blade controllers
+│   │       ├── AuthController.php
+│   │       ├── DashboardController.php
+│   │       ├── ProjectController.php
+│   │       └── TaskController.php
+│   ├── Requests/           # Form Request validation (Store/Update × Project/Task)
+│   └── Resources/          # ProjectResource, TaskResource
+├── Models/                 # User, Project, Task
+└── Policies/               # ProjectPolicy, TaskPolicy
+resources/views/
+├── layouts/app.blade.php   # Master layout
+├── components/             # flash, input, textarea, select, button, card, status-badge
+├── auth/                   # login, register
+├── dashboard.blade.php
+├── projects/               # index, create, edit, show, _form
+└── tasks/                  # create, edit, _form
+routes/
+├── api.php                 # API routes (auth:sanctum)
+└── web.php                 # Web routes (auth session)
+```
 
-Future Improvements
-Planned features:
+---
 
-Task CRUD API
-Task assignment to projects
-Task status and priority management
-Pagination
-Filtering by status and priority
-Search functionality
-Comment system for tasks
-API response wrapper
-Feature tests and unit tests
-Project Status
-Current version includes:
+## Authorization, Policies & Pagination
 
-Authentication system
-Sanctum token management
-Protected API routes
-Project CRUD functionality
-User-based project ownership
-Request validation
-API Resources
-Task management functionality is planned for the next development phase.
+- **Ownership** is enforced by `ProjectPolicy` and `TaskPolicy`. Users can only view, update, or delete resources they own; unauthorized access returns **HTTP 403**. Both the API and web controllers authorize through these policies.
+- **Pagination** is applied to all listings — the API returns paginated resource collections (with `data`, `links`, and `meta`), and the web listings are paginated as well.
+- **Filtering & search** — project and task listings accept `search` (name/title) and `status` query parameters.
 
-Author
-Mohammad Hossein Rahimpour
+---
 
-Laravel Developer
+## Testing
+
+```bash
+php artisan test
+```
+
+Tests are written with **Pest**.
+
+---
+
+## Author
+
+**Mohammad Hossein Rahimpour** — Laravel Developer
